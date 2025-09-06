@@ -182,7 +182,7 @@ void loop() {
 
   int adcBat = analogRead(PIN_BATTERY);
   batteryV = adcBat * (16.0 / 4095.0); // Ajusta el 16.0 al máximo de tu batería real
-
+/*
   static unsigned long lastTx = 0;
   if (millis() - lastTx >= 500) {
     lastTx = millis();
@@ -201,7 +201,7 @@ void loop() {
     unsigned long extId_rpm = (6UL << 26) | (pgn_rpm << 8) | 0;
     CAN.sendMsgBuf(extId_rpm, 1, 8, data_rpm);
   }
-
+*/
   static unsigned long lastTempTx = 0;
   if (millis() - lastTempTx >= 1000) {
     lastTempTx = millis();
