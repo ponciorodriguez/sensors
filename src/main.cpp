@@ -182,7 +182,8 @@ void loop() {
 
   int adcBat = analogRead(PIN_BATTERY);
   batteryV = adcBat * (16.0 / 4095.0); // Ajusta el 16.0 al máximo de tu batería real
-/*
+
+  // --- ENVÍA RPM (PGN 127488) ---
   static unsigned long lastTx = 0;
   if (millis() - lastTx >= 500) {
     lastTx = millis();
@@ -201,22 +202,28 @@ void loop() {
     unsigned long extId_rpm = (6UL << 26) | (pgn_rpm << 8) | 0;
     CAN.sendMsgBuf(extId_rpm, 1, 8, data_rpm);
   }
-*/
-  static unsigned long lastTempTx = 0;
-  if (millis() - lastTempTx >= 1000) {
-    lastTempTx = millis();
 
-    byte data_temp[8] = {0};
-    data_temp[0] = 0;
-    data_temp[1] = 0xFF; data_temp[2] = 0xFF;
-    data_temp[3] = 0xFF; data_temp[4] = 0xFF;
-    uint16_t tempCK = (uint16_t)((tempC + 273.15) * 100.0);
-    data_temp[5] = tempCK & 0xFF;
-    data_temp[6] = (tempCK >> 8) & 0xFF;
-    data_temp[7] = 0xFF;
-    unsigned long pgn_temp = 127489;
-    unsigned long extId_temp = (6UL << 26) | (pgn_temp << 8) | 0;
-    CAN.sendMsgBuf(extId_temp, 1, 8, data_temp);
+
+
+  // --- ENVÍA TEMPERATURA AGUA AMBIENTE NMEA2000 (PGN 130310) ---
+  static unsigned long lastEnvTx = 0;
+  if (millis() - lastEnvTx >= 1000) {
+    lastEnvTx = millis();
+
+    byte data_env[8] = {0};
+    data_env[0] = 0; // SID
+    data_env[1] = 0; // Water temperature instance (0 = agua)
+    uint16_t tempK100 = (uint16_t)((tempC + 273.15) * 1.0);
+    data_env[2] = tempK100 & 0xFF;        // Temp LSB
+    data_env[3] = (tempK100 >> 8) & 0xFF; // Temp MSB
+    data_env[4] = 0xFF; // Humedad relativa no disponible
+    data_env[5] = 0xFF; // Humedad relativa no disponible
+    data_env[6] = 0xFF; // Temp dewpoint no disponible
+    data_env[7] = 0xFF; // Temp dewpoint no disponible
+
+    unsigned long pgn_env = 130310;
+    unsigned long extId_env = (6UL << 26) | (pgn_env << 8) | 0;
+    CAN.sendMsgBuf(extId_env, 1, 8, data_env);
   }
 
   server.handleClient();
