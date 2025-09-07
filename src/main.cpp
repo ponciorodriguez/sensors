@@ -213,7 +213,7 @@ void loop() {
     byte data_env[8] = {0};
     data_env[0] = 0; // SID
     data_env[1] = 0; // Water temperature instance (0 = agua)
-    uint16_t tempK100 = (uint16_t)((tempC + 273.15) * 1.0);
+    uint16_t tempK100 = (uint16_t)((tempC + 273.15) * 100.0);
     data_env[2] = tempK100 & 0xFF;        // Temp LSB
     data_env[3] = (tempK100 >> 8) & 0xFF; // Temp MSB
     data_env[4] = 0xFF; // Humedad relativa no disponible
