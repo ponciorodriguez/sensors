@@ -151,12 +151,18 @@ void setup() {
 
   WiFi.config(local_IP, gateway, subnet, dns);
   WiFi.begin(ssid, password);
+  Serial.println("Conectando a WiFi...");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
+    Serial.print(".");
   }
+  Serial.println();
+  Serial.print("WiFi conectado. IP: ");
+  Serial.println(WiFi.localIP());
 
   SPI.begin(18, 19, 23, PIN_CS);
   if (CAN.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) != CAN_OK) {
+    Serial.println("Error inicializando MCP_CAN");
     while (1);
   }
   CAN.setMode(MCP_NORMAL);
@@ -174,6 +180,8 @@ void setup() {
   server.on("/parada", HTTP_POST, handleParada);
   server.on("/navlight", HTTP_POST, handleNavLight);
   server.begin();
+
+  Serial.println("Servidor web iniciado.");
 }
 
 void loop() {
@@ -200,10 +208,21 @@ void loop() {
     data_rpm[7] = 0xFF;
     unsigned long pgn_rpm = 127488;
     unsigned long extId_rpm = (6UL << 26) | (pgn_rpm << 8) | 0;
+
+    // --- SERIAL PRINT ---
+    Serial.print("[N2K 127488] Enviando RPM: ");
+    Serial.print(rpmSim);
+    Serial.print(" | Raw: ");
+    Serial.print(rpmRaw);
+    Serial.print(" | Data: [");
+    for (int i = 0; i < 8; i++) {
+      Serial.print(data_rpm[i], HEX);
+      if (i < 7) Serial.print(" ");
+    }
+    Serial.println("]");
+
     CAN.sendMsgBuf(extId_rpm, 1, 8, data_rpm);
   }
-
-
 
   // --- ENVÍA TEMPERATURA AGUA AMBIENTE NMEA2000 (PGN 130310) ---
   static unsigned long lastEnvTx = 0;
@@ -223,6 +242,19 @@ void loop() {
 
     unsigned long pgn_env = 130310;
     unsigned long extId_env = (6UL << 26) | (pgn_env << 8) | 0;
+
+    // --- SERIAL PRINT ---
+    Serial.print("[N2K 130310] Enviando Temp Agua: ");
+    Serial.print(tempC, 1);
+    Serial.print("°C | Raw: ");
+    Serial.print(tempK100);
+    Serial.print(" | Data: [");
+    for (int i = 0; i < 8; i++) {
+      Serial.print(data_env[i], HEX);
+      if (i < 7) Serial.print(" ");
+    }
+    Serial.println("]");
+
     CAN.sendMsgBuf(extId_env, 1, 8, data_env);
   }
 
