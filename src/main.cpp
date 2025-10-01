@@ -27,6 +27,12 @@ const int rpmSim = 2500;
 volatile bool motorParado = false;
 volatile bool navLightOn = false;
 
+// === AJUSTA AQUÍ EL CÓDIGO DE FUENTE DE TEMPERATURA SI LO NECESITAS ===
+// Tabla TEMPERATURE_SOURCE (Engine Coolant) -> revisa enumeraciones CANboat.
+// Usa el valor que tu MFD/SignalK espera para “Engine Coolant”.
+const uint8_t TEMP_SRC_ENGINE_COOLANT = 0x16; // <-- cámbialo si tu red usa otro código
+
+// ---------------- UI (sin cambios) ----------------
 void handleRoot() {
   String page = "<!DOCTYPE html><html><head><meta charset='UTF-8'>";
   page += "<title>Panel Motor</title>";
@@ -64,47 +70,21 @@ void handleRoot() {
   page += "<button id='btn-parada' class='btn-parada stop'>PARADA EMERGENCIA</button>";
   page += "<script>";
   page += "let gaugeTemp, gaugeRPM, gaugeBat, parado=false, navlight=false;";
-  page += "function updateBtn(){";
-  page += " const btn=document.getElementById('btn-parada');";
-  page += " if(parado){btn.textContent='REARMAR MOTOR';btn.className='btn-parada run';}else{btn.textContent='PARADA EMERGENCIA';btn.className='btn-parada stop';}";
-  page += "}";
-  page += "function updateNavBtn(){";
-  page += " const btn=document.getElementById('btn-navlight');";
-  page += " if(navlight){btn.textContent='LUZ NAVEGACIÓN ON';btn.className='btn-navlight on';}else{btn.textContent='LUZ NAVEGACIÓN OFF';btn.className='btn-navlight off';}";
-  page += "}";
+  page += "function updateBtn(){ const btn=document.getElementById('btn-parada'); if(parado){btn.textContent='REARMAR MOTOR';btn.className='btn-parada run';}else{btn.textContent='PARADA EMERGENCIA';btn.className='btn-parada stop';}}";
+  page += "function updateNavBtn(){ const btn=document.getElementById('btn-navlight'); if(navlight){btn.textContent='LUZ NAVEGACIÓN ON';btn.className='btn-navlight on';}else{btn.textContent='LUZ NAVEGACIÓN OFF';btn.className='btn-navlight off';}}";
   page += "document.addEventListener('DOMContentLoaded',function(){";
   page += "gaugeTemp = new RadialGauge({renderTo:'gauge-temp',minValue:0,maxValue:120,units:'°C',majorTicks:[0,20,40,60,80,100,120],minorTicks:4,highlights:[{from:90,to:120,color:'rgba(200,50,50,.75)'}],value:0,width:150,height:150}).draw();";
   page += "gaugeRPM = new RadialGauge({renderTo:'gauge-rpm',minValue:0,maxValue:4000,units:'rpm',majorTicks:[0,500,1000,1500,2000,2500,3000,3500,4000],minorTicks:4,highlights:[{from:3500,to:4000,color:'rgba(200,50,50,.75)'}],value:0,width:150,height:150}).draw();";
   page += "gaugeBat = new RadialGauge({renderTo:'gauge-bat',minValue:10,maxValue:15,units:'V',majorTicks:[10,11,12,13,14,15],minorTicks:5,highlights:[{from:10,to:11.5,color:'rgba(200,50,50,.75)'},{from:14.5,to:15,color:'rgba(200,200,50,.75)'}],value:0,width:150,height:150}).draw();";
   page += "setInterval(()=>{fetch('/vals').then(r=>r.json()).then(j=>{";
-  page += "gaugeTemp.value = j.temp;";
-  page += "document.getElementById('val-temp').textContent = j.temp.toFixed(1);";
-  page += "gaugeRPM.value = j.rpm;";
-  page += "document.getElementById('val-rpm').textContent = j.rpm;";
-  page += "gaugeBat.value = j.bat;";
-  page += "document.getElementById('val-bat').textContent = j.bat.toFixed(2);";
-  page += "parado = j.parado; updateBtn();";
-  page += "navlight = j.navlight; updateNavBtn();";
-  page += "if (j.temp > 110) {";
-  page += "  if (!document.getElementById('alarm-temp')) {";
-  page += "    let alarm = document.createElement('div');";
-  page += "    alarm.id = 'alarm-temp';";
-  page += "    alarm.innerHTML = '&#9888; <b>PELIGRO:</b> Temperatura de motor demasiado alta (' + j.temp.toFixed(1) + ' °C)';";
-  page += "    document.body.appendChild(alarm);";
-  page += "    /* Opcional: sonido de alarma";
-  page += "    let audio = new Audio('/alarma.mp3'); audio.play(); */";
-  page += "  }";
-  page += "} else {";
-  page += "  let alarm = document.getElementById('alarm-temp');";
-  page += "  if (alarm) alarm.remove();";
-  page += "}";
+  page += "gaugeTemp.value = j.temp; document.getElementById('val-temp').textContent = j.temp.toFixed(1);";
+  page += "gaugeRPM.value = j.rpm; document.getElementById('val-rpm').textContent = j.rpm;";
+  page += "gaugeBat.value = j.bat; document.getElementById('val-bat').textContent = j.bat.toFixed(2);";
+  page += "parado = j.parado; updateBtn(); navlight = j.navlight; updateNavBtn();";
+  page += "if (j.temp > 110) { if (!document.getElementById('alarm-temp')) { let alarm = document.createElement('div'); alarm.id = 'alarm-temp'; alarm.innerHTML = '&#9888; <b>PELIGRO:</b> Temp motor muy alta (' + j.temp.toFixed(1) + ' °C)'; document.body.appendChild(alarm);} } else { let alarm = document.getElementById('alarm-temp'); if (alarm) alarm.remove(); }";
   page += "});},500);";
-  page += "document.getElementById('btn-parada').onclick=function(){";
-  page += " fetch('/parada',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({parar:!parado})}).then(()=>{parado=!parado;updateBtn();});";
-  page += "};";
-  page += "document.getElementById('btn-navlight').onclick=function(){";
-  page += " fetch('/navlight',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:!navlight})}).then(()=>{navlight=!navlight;updateNavBtn();});";
-  page += "};";
+  page += "document.getElementById('btn-parada').onclick=function(){ fetch('/parada',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({parar:!parado})}).then(()=>{parado=!parado;updateBtn();});};";
+  page += "document.getElementById('btn-navlight').onclick=function(){ fetch('/navlight',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:!navlight})}).then(()=>{navlight=!navlight;updateNavBtn();});};";
   page += "});";
   page += "</script>";
   page += "</body></html>";
@@ -185,8 +165,9 @@ void setup() {
 }
 
 void loop() {
+  // Lee sensor (ajusta a tu curva real del sensor de motor)
   int adcRaw = analogRead(PIN_ADC);
-  tempC = (adcRaw / 4095.0f) * 120.0f;
+  tempC = (adcRaw / 4095.0f) * 120.0f;  // ejemplo lineal: 0..120 °C
 
   int adcBat = analogRead(PIN_BATTERY);
   batteryV = adcBat * (16.0 / 4095.0); // Ajusta el 16.0 al máximo de tu batería real
@@ -209,53 +190,55 @@ void loop() {
     unsigned long pgn_rpm = 127488;
     unsigned long extId_rpm = (6UL << 26) | (pgn_rpm << 8) | 0;
 
-    // --- SERIAL PRINT ---
     Serial.print("[N2K 127488] Enviando RPM: ");
     Serial.print(rpmSim);
     Serial.print(" | Raw: ");
     Serial.print(rpmRaw);
     Serial.print(" | Data: [");
-    for (int i = 0; i < 8; i++) {
-      Serial.print(data_rpm[i], HEX);
-      if (i < 7) Serial.print(" ");
-    }
+    for (int i = 0; i < 8; i++) { Serial.print(data_rpm[i], HEX); if (i < 7) Serial.print(" "); }
     Serial.println("]");
 
     CAN.sendMsgBuf(extId_rpm, 1, 8, data_rpm);
   }
 
-  // --- ENVÍA TEMPERATURA AGUA AMBIENTE NMEA2000 (PGN 130310) ---
-  static unsigned long lastEnvTx = 0;
-  if (millis() - lastEnvTx >= 1000) {
-    lastEnvTx = millis();
+  // --- ENVÍA TEMPERATURA DE MOTOR (PGN 130316) ---
+  static unsigned long lastTempTx = 0;
+  if (millis() - lastTempTx >= 1000) {
+    lastTempTx = millis();
 
-    byte data_env[8] = {0};
-    data_env[0] = 0; // SID
-    data_env[1] = 0; // Water temperature instance (0 = agua)
-    uint16_t tempK100 = (uint16_t)((tempC + 273.15) * 100.0);
-    data_env[2] = tempK100 & 0xFF;        // Temp LSB
-    data_env[3] = (tempK100 >> 8) & 0xFF; // Temp MSB
-    data_env[4] = 0xFF; // Humedad relativa no disponible
-    data_env[5] = 0xFF; // Humedad relativa no disponible
-    data_env[6] = 0xFF; // Temp dewpoint no disponible
-    data_env[7] = 0xFF; // Temp dewpoint no disponible
+    // Actual Temperature -> 0.001 K (milikelvin), 24 bits (LSB primero)
+    // Set Temperature -> 0.1 K (decikelvin), 16 bits (LSB primero) o 0xFFFF si N/D
+    uint32_t temp_mK = (uint32_t)lround((tempC + 273.15f) * 1000.0f);
+    if (temp_mK > 0xFFFFFE) temp_mK = 0xFFFFFE; // evita colisión con 0xFFFFFF (N/D)
 
-    unsigned long pgn_env = 130310;
-    unsigned long extId_env = (6UL << 26) | (pgn_env << 8) | 0;
+    uint16_t setTemp_dK = 0xFFFF; // no enviamos setpoint
 
-    // --- SERIAL PRINT ---
-    Serial.print("[N2K 130310] Enviando Temp Agua: ");
+    byte data_130316[8] = {0};
+    data_130316[0] = 0x00;                     // SID
+    data_130316[1] = 0x00;                     // Instance (0 = motor 1)
+    data_130316[2] = TEMP_SRC_ENGINE_COOLANT;  // Temperature Source (ajusta si hace falta)
+
+    // Actual Temperature (24 bits, LSB primero)
+    data_130316[3] = (uint8_t)(temp_mK & 0xFF);
+    data_130316[4] = (uint8_t)((temp_mK >> 8) & 0xFF);
+    data_130316[5] = (uint8_t)((temp_mK >> 16) & 0xFF);
+
+    // Set Temperature (0.1 K, 16 bits LSB primero) - aquí N/D
+    data_130316[6] = (uint8_t)(setTemp_dK & 0xFF);
+    data_130316[7] = (uint8_t)((setTemp_dK >> 8) & 0xFF);
+
+    const unsigned long pgn_temp = 130316;
+    const unsigned long extId_temp = (6UL << 26) | (pgn_temp << 8) | 0;
+
+    Serial.print("[N2K 130316] Temp motor: ");
     Serial.print(tempC, 1);
-    Serial.print("°C | Raw: ");
-    Serial.print(tempK100);
+    Serial.print("°C | mK raw: ");
+    Serial.print(temp_mK);
     Serial.print(" | Data: [");
-    for (int i = 0; i < 8; i++) {
-      Serial.print(data_env[i], HEX);
-      if (i < 7) Serial.print(" ");
-    }
+    for (int i = 0; i < 8; i++) { Serial.print(data_130316[i], HEX); if (i < 7) Serial.print(" "); }
     Serial.println("]");
 
-    CAN.sendMsgBuf(extId_env, 1, 8, data_env);
+    CAN.sendMsgBuf(extId_temp, 1, 8, data_130316);
   }
 
   server.handleClient();
